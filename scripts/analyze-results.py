@@ -15,12 +15,33 @@ import sqlite3
 import sys
 
 GROUP_COLS = [
-    'experiment',
-    'example',
     'backend',
+    'example',
+    'experiment',
 ]
 
 GROUP_COLS_STR = lambda prefix: ', '.join([prefix + '.' + col for col in GROUP_COLS])
+
+# Enfirce a specific ordering on the examples.
+EXAMPLE_RANK_IDS = {
+    'stance-createdebate': '01-stance-createdebate',
+    'simple-acquaintances': '02-simple-acquaintances',
+    'stance-4forums': '03-stance-4forums',
+    'trust-prediction': '04-trust-prediction',
+    'friendship': '05-friendship',
+    'epinions': '06-epinions',
+    'citeseer': '07-citeseer',
+    'cora': '08-cora',
+    'user-modeling': '09-user-modeling',
+    'knowledge-graph-identification': '10-knowledge-graph-identification',
+    'yelp': '11-yelp',
+    'social-network-analysis': '12-social-network-analysis',
+    'entity-resolution': '13-entity-resolution',
+    'jester': '14-jester',
+    'lastfm': '15-lastfm',
+}
+
+EXAMPLE_RANK_IDS_QUERY = " UNION ALL ".join(["SELECT '%s' AS example, '%s' AS id" % (key, value) for (key, value) in EXAMPLE_RANK_IDS.items()])
 
 # Get all results with an actual value (e.g. ignore incomplete runs).
 BASE_QUERY = '''
@@ -50,8 +71,62 @@ AGGREGATE_QUERY = '''
     GROUP BY
         ''' + GROUP_COLS_STR('S') + '''
     ORDER BY
+        example,
+        backend,
         ''' + GROUP_COLS_STR('S') + '''
+'''
 
+# Pose results as relative to postgres on the same split/iteration.
+RELATIVE_QUERY = '''
+    SELECT
+        ''' + GROUP_COLS_STR('S1') + ''',
+        S1.split,
+        S1.iteration,
+        S1.groundrules,
+        S1.memory / CAST(S2.memory AS REAL) AS relative_memory,
+        S1.runtime / CAST(S2.runtime AS REAL) AS relative_runtime,
+        S1.grounding_time / CAST(S2.grounding_time AS REAL) AS relative_grounding_time
+    FROM
+        (
+            ''' + BASE_QUERY + '''
+        ) S1
+        JOIN (
+            ''' + BASE_QUERY + '''
+        ) S2 USING (example, experiment, split, iteration)
+    WHERE
+        S2.backend = 'Postgres'
+    ORDER BY
+        ''' + GROUP_COLS_STR('S1') + ''',
+        S1.split,
+        S1.iteration
+'''
+
+# Aggregate over the relative query.
+RELATIVE_AGGREGATE_QUERY = '''
+    SELECT
+        I.id,
+        ''' + GROUP_COLS_STR('S') + ''',
+        COUNT(S.split) AS numIterations,
+        AVG(S.groundrules) AS groundrules,
+        AVG(S.relative_memory) AS relative_memory_mean,
+        STDEV(S.relative_memory) AS relative_memory_std,
+        AVG(S.relative_runtime) AS relative_runtime_mean,
+        STDEV(S.relative_runtime) AS relative_runtime_std,
+        AVG(S.relative_grounding_time) AS relative_grounding_time_mean,
+        STDEV(S.relative_grounding_time) AS relative_grounding_time_std
+    FROM
+        (
+            ''' + RELATIVE_QUERY + '''
+        ) S
+        JOIN (
+            ''' + EXAMPLE_RANK_IDS_QUERY + '''
+        ) I ON I.example = S.example
+    GROUP BY
+        I.id,
+        ''' + GROUP_COLS_STR('S') + '''
+    ORDER BY
+        I.id,
+        ''' + GROUP_COLS_STR('S') + '''
 '''
 
 BOOL_COLUMNS = {
@@ -77,6 +152,14 @@ RUN_MODES = {
     'AGGREGATE': (
         AGGREGATE_QUERY,
         'Aggregate over iteration.',
+    ),
+    'RELATIVE': (
+        RELATIVE_QUERY,
+        'Pose results as relative to postgres on the same split/iteration.',
+    ),
+    'RELATIVE_AGGREGATE': (
+        RELATIVE_AGGREGATE_QUERY,
+        'Aggregate over the relative query.',
     ),
 }
 
