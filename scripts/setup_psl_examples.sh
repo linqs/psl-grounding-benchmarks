@@ -49,6 +49,15 @@ function standard_fixes() {
 
             # Set the PSL version.
             sed -i "s/^readonly PSL_VERSION='.*'$/readonly PSL_VERSION='${PSL_VERSION}'/" run.sh
+
+            # Always create a -learned version of the model in case this example has weight learning.
+            cp "${baseName}.psl" "${baseName}-learned.psl"
+
+            # Disable weight learning.
+            sed -i 's/^\(\s\+\)run_weight_learning/\1# run_weight_learning/' run.sh
+
+            # Disable evaluation, we are only looking for objective values.
+            sed -i "s/^readonly ADDITIONAL_EVAL_OPTIONS='.*'$/readonly ADDITIONAL_EVAL_OPTIONS='--infer'/" run.sh
         popd > /dev/null
     done
 }

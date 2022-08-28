@@ -36,6 +36,7 @@ AGGREGATE_QUERY = '''
     SELECT
         ''' + GROUP_COLS_STR('S') + ''',
         COUNT(S.split) AS numIterations,
+        AVG(S.groundrules) AS groundrules,
         AVG(S.memory) AS memory_mean,
         STDEV(S.memory) AS memory_std,
         AVG(S.runtime) AS runtime_mean,
@@ -58,6 +59,7 @@ BOOL_COLUMNS = {
 
 INT_COLUMNS = {
     'iteration',
+    'groundrules',
     'memory',
     'runtime',
     'grounding_time',

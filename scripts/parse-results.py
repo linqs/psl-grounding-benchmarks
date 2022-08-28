@@ -21,6 +21,7 @@ HEADER = [
     'split',
     'iteration',
     # Results
+    'groundrules',
     'memory',
     'runtime',
     'grounding_time',
@@ -44,6 +45,10 @@ def parseLog(logPath):
             match = re.search(r'^(\d+)\s+\[', line)
             if (match is not None):
                 time = int(match.group(1))
+
+            match = re.search(r'DEBUG org.linqs.psl.application.inference.InferenceApplication  - Generated (\d+) ground rules.', line)
+            if (match is not None):
+                results['groundrules'] = int(match.group(1))
 
             match = re.search(r'INFO  org.linqs.psl.application.inference.InferenceApplication  - Grounding out model.', line)
             if (match is not None):
