@@ -55,6 +55,7 @@ BASE_QUERY = '''
 # Aggregate over splits/iterations.
 AGGREGATE_QUERY = '''
     SELECT
+        I.id,
         ''' + GROUP_COLS_STR('S') + ''',
         COUNT(S.split) AS numIterations,
         AVG(S.groundrules) AS groundrules,
@@ -68,11 +69,15 @@ AGGREGATE_QUERY = '''
         (
             ''' + BASE_QUERY + '''
         ) S
+        JOIN (
+            ''' + EXAMPLE_RANK_IDS_QUERY + '''
+        ) I ON I.example = S.example
     GROUP BY
         ''' + GROUP_COLS_STR('S') + '''
     ORDER BY
-        example,
-        backend,
+        I.id,
+        S.example,
+        S.backend,
         ''' + GROUP_COLS_STR('S') + '''
 '''
 
